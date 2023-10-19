@@ -22,7 +22,7 @@ services:
     build: .
     container_name: "SEOnaut-app"
     ports:
-      - "${SEONAUT_PORT:-9000}:9000"
+      - "${SEONAUT_PORT:-9001}:9001"
     depends_on:
       - db
       - redis
