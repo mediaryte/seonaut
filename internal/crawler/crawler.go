@@ -40,6 +40,7 @@ type Crawler struct {
 	robotsChecker   *RobotsChecker
 	prStream        chan *models.PageReportMessage
 	allowedDomains  map[string]bool
+	mainDomain      string
 	httpCrawler     *http_crawler.HttpCrawler
 	qStream         chan string
 }
@@ -60,10 +61,11 @@ func NewCrawler(url *url.URL, options *Options) *Crawler {
 	q.Push(url.String())
 
 	httpClient := http_crawler.NewClient(&http_crawler.ClientOptions{
-		UserAgent: options.UserAgent,
-		BasicAuth: options.BasicAuth,
-		AuthUser:  options.AuthUser,
-		AuthPass:  options.AuthPass,
+		UserAgent:        options.UserAgent,
+		BasicAuth:        options.BasicAuth,
+		BasicAuthDomains: []string{mainDomain, "www." + mainDomain},
+		AuthUser:         options.AuthUser,
+		AuthPass:         options.AuthPass,
 	})
 
 	robotsChecker := NewRobotsChecker(httpClient)
@@ -88,6 +90,7 @@ func NewCrawler(url *url.URL, options *Options) *Crawler {
 		robotsChecker:   robotsChecker,
 		robotstxtExists: robotsChecker.Exists(url),
 		allowedDomains:  map[string]bool{mainDomain: true, "www." + mainDomain: true},
+		mainDomain:      mainDomain,
 		prStream:        make(chan *models.PageReportMessage),
 		qStream:         qStream,
 		httpCrawler:     http_crawler.New(httpClient, qStream),
@@ -239,7 +242,7 @@ func (c *Crawler) domainIsAllowed(s string) bool {
 		return true
 	}
 
-	if c.options.AllowSubdomains && strings.HasSuffix(s, c.url.Host) {
+	if c.options.AllowSubdomains && strings.HasSuffix(s, c.mainDomain) {
 		return true
 	}
 
