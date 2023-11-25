@@ -15,12 +15,14 @@ func GetAllReporters() []*report_manager.PageIssueReporter {
 		// Add title issue reporters
 		NewEmptyTitleReporter(),
 		NewShortTitleReporter(),
-		NewShortTitleReporter(),
+		NewLongTitleReporter(),
+		NewMultipleTitleTagsReporter(),
 
 		// Add description issue reporters
 		NewEmptyDescriptionReporter(),
 		NewShortDescriptionReporter(),
 		NewLongDescriptionReporter(),
+		NewMultipleDescriptionTagsReporter(),
 
 		// Add indexability issue reporters
 		NewNoIndexableReporter(),
@@ -30,6 +32,8 @@ func GetAllReporters() []*report_manager.PageIssueReporter {
 		NewNonCanonicalInSitemapReporter(),
 		NewCanonicalMultipleTagsReporter(),
 		NewCanonicalRelativeURLReporter(),
+		NewCanonicalMismatch(),
+		NewDepthReporter(),
 
 		// Add link issue reporters
 		NewTooManyLinksReporter(),
@@ -40,6 +44,8 @@ func GetAllReporters() []*report_manager.PageIssueReporter {
 
 		// Add image issue reporters
 		NewAltTextReporter(),
+		NewLongAltTextReporter(),
+		NewLargeImageReporter(),
 
 		// Add language issue reporters
 		NewInvalidLangReporter(),
@@ -58,5 +64,10 @@ func GetAllReporters() []*report_manager.PageIssueReporter {
 
 		// Add scheme issue reporters
 		NewHTTPSchemeReporter(),
+
+		// Add security issue reporters
+		NewMissingHSTSHeaderReporter(),
+		NewMissingCSPReporter(),
+		NewMissingContentTypeOptionsReporter(),
 	}
 }

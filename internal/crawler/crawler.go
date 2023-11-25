@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/stjudewashere/seonaut/internal/html_parser"
-	"github.com/stjudewashere/seonaut/internal/http_crawler"
+	"github.com/stjudewashere/seonaut/internal/httpcrawler"
 	"github.com/stjudewashere/seonaut/internal/models"
 	"github.com/stjudewashere/seonaut/internal/queue"
 	"github.com/stjudewashere/seonaut/internal/urlstorage"
@@ -32,17 +32,17 @@ type Crawler struct {
 	queue           *queue.Queue
 	storage         *urlstorage.URLStorage
 	sitemapStorage  *urlstorage.URLStorage
-	sitemapChecker  *SitemapChecker
+	sitemapChecker  *httpcrawler.SitemapChecker
 	sitemapExists   bool
 	sitemaps        []string
 	robotstxtExists bool
 	responseCounter int
-	robotsChecker   *RobotsChecker
+	robotsChecker   *httpcrawler.RobotsChecker
 	prStream        chan *models.PageReportMessage
 	allowedDomains  map[string]bool
 	mainDomain      string
-	httpCrawler     *http_crawler.HttpCrawler
-	qStream         chan string
+	httpCrawler     *httpcrawler.HttpCrawler
+	qStream         chan *httpcrawler.RequestMessage
 }
 
 func NewCrawler(url *url.URL, options *Options) *Crawler {
@@ -58,9 +58,9 @@ func NewCrawler(url *url.URL, options *Options) *Crawler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	q := queue.New(ctx)
-	q.Push(url.String())
+	q.Push(&httpcrawler.RequestMessage{URL: url.String()})
 
-	httpClient := http_crawler.NewClient(&http_crawler.ClientOptions{
+	httpClient := httpcrawler.NewClient(&httpcrawler.ClientOptions{
 		UserAgent:        options.UserAgent,
 		BasicAuth:        options.BasicAuth,
 		BasicAuthDomains: []string{mainDomain, "www." + mainDomain},
@@ -68,15 +68,15 @@ func NewCrawler(url *url.URL, options *Options) *Crawler {
 		AuthPass:         options.AuthPass,
 	})
 
-	robotsChecker := NewRobotsChecker(httpClient)
+	robotsChecker := httpcrawler.NewRobotsChecker(httpClient, options.UserAgent)
 
 	sitemaps := robotsChecker.GetSitemaps(url)
 	if len(sitemaps) == 0 {
 		sitemaps = []string{url.Scheme + "://" + url.Host + "/sitemap.xml"}
 	}
 
-	sitemapChecker := NewSitemapChecker(httpClient, options.MaxPageReports)
-	qStream := make(chan string)
+	sitemapChecker := httpcrawler.NewSitemapChecker(httpClient, options.MaxPageReports)
+	qStream := make(chan *httpcrawler.RequestMessage)
 
 	c := &Crawler{
 		url:             url,
@@ -93,11 +93,16 @@ func NewCrawler(url *url.URL, options *Options) *Crawler {
 		mainDomain:      mainDomain,
 		prStream:        make(chan *models.PageReportMessage),
 		qStream:         qStream,
-		httpCrawler:     http_crawler.New(httpClient, qStream),
+		httpCrawler:     httpcrawler.New(httpClient, qStream),
 	}
 
-	go c.queueStreamer(ctx)
 	go func() {
+		defer close(c.qStream)
+		c.queueStreamer(ctx)
+	}()
+
+	go func() {
+		defer close(c.prStream)
 		c.crawl(ctx)
 		cancel()
 	}()
@@ -114,8 +119,6 @@ func (c *Crawler) Stream() <-chan *models.PageReportMessage {
 // Polls URLs from the queue and sends them into the qStream channel.
 // queueStreamer shuts down when the ctx context is done.
 func (c *Crawler) queueStreamer(ctx context.Context) {
-	defer close(c.qStream)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -129,8 +132,6 @@ func (c *Crawler) queueStreamer(ctx context.Context) {
 // through the pr channel. It will end when there are no more URLs to crawl
 // or the MaxPageReports limit is hit.
 func (c *Crawler) crawl(ctx context.Context) {
-	defer close(c.prStream)
-
 	if c.sitemapExists && c.options.CrawlSitemap {
 		c.sitemapChecker.ParseSitemaps(c.sitemaps, c.loadSitemapURLs)
 	}
@@ -156,11 +157,13 @@ func (c *Crawler) crawl(ctx context.Context) {
 
 // handleResponse handles the crawler response messages.
 // It creates a new PageReport and adds the new URLs to the crawler queue.
-func (c *Crawler) handleResponse(r *http_crawler.ResponseMessage) error {
+func (c *Crawler) handleResponse(r *httpcrawler.ResponseMessage) error {
 	c.queue.Ack(r.URL)
 	if r.Error != nil {
 		return r.Error
 	}
+
+	defer r.Response.Body.Close()
 
 	pageReport, htmlNode, err := html_parser.NewFromHTTPResponse(r.Response)
 	if err != nil {
@@ -172,6 +175,7 @@ func (c *Crawler) handleResponse(r *http_crawler.ResponseMessage) error {
 		return err
 	}
 
+	pageReport.Depth = r.Depth
 	pageReport.BlockedByRobotstxt = c.robotsChecker.IsBlocked(parsedURL)
 	pageReport.InSitemap = c.sitemapStorage.Seen(r.URL)
 
@@ -205,7 +209,7 @@ func (c *Crawler) handleResponse(r *http_crawler.ResponseMessage) error {
 				Crawled:    c.responseCounter,
 				Discovered: c.queue.Count(),
 				HtmlNode:   htmlNode,
-				Response:   r.Response,
+				Header:     &r.Response.Header,
 				PageReport: &models.PageReport{
 					URL:                t.String(),
 					ParsedURL:          t,
@@ -217,14 +221,14 @@ func (c *Crawler) handleResponse(r *http_crawler.ResponseMessage) error {
 			continue
 		}
 
-		c.queue.Push(t.String())
+		c.queue.Push(&httpcrawler.RequestMessage{URL: t.String(), Depth: pageReport.Depth + 1})
 	}
 
 	if !pageReport.Noindex || c.options.IncludeNoindex {
 		c.prStream <- &models.PageReportMessage{
 			PageReport: pageReport,
 			HtmlNode:   htmlNode,
-			Response:   r.Response,
+			Header:     &r.Response.Header,
 			Crawled:    c.responseCounter,
 			Discovered: c.queue.Count(),
 		}
@@ -268,7 +272,7 @@ func (c *Crawler) queueSitemapURLs() {
 	c.sitemapStorage.Iterate(func(v string) {
 		if !c.storage.Seen(v) {
 			c.storage.Add(v)
-			c.queue.Push(v)
+			c.queue.Push(&httpcrawler.RequestMessage{URL: v})
 		}
 	})
 }

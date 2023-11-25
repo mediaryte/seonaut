@@ -1,8 +1,11 @@
 package reporters
 
 import (
+	"net/http"
+
 	"golang.org/x/net/html"
 
+	"github.com/antchfx/htmlquery"
 	"github.com/stjudewashere/seonaut/internal/models"
 	"github.com/stjudewashere/seonaut/internal/report_manager"
 	"github.com/stjudewashere/seonaut/internal/report_manager/reporter_errors"
@@ -12,7 +15,7 @@ import (
 // an empty or missing description. It returns true if the status code is between
 // 200 and 299, the media type is text/html and the description is not set.
 func NewEmptyDescriptionReporter() *report_manager.PageIssueReporter {
-	c := func(pageReport *models.PageReport, htmlNode *html.Node) bool {
+	c := func(pageReport *models.PageReport, htmlNode *html.Node, header *http.Header) bool {
 		if !pageReport.Crawled {
 			return false
 		}
@@ -38,7 +41,7 @@ func NewEmptyDescriptionReporter() *report_manager.PageIssueReporter {
 // The callback function returns true if the page is text/html, has a status code between 200 and 299,
 // and has a description of less than an specified amount of letters.
 func NewShortDescriptionReporter() *report_manager.PageIssueReporter {
-	c := func(pageReport *models.PageReport, htmlNode *html.Node) bool {
+	c := func(pageReport *models.PageReport, htmlNode *html.Node, header *http.Header) bool {
 		if !pageReport.Crawled {
 			return false
 		}
@@ -64,7 +67,7 @@ func NewShortDescriptionReporter() *report_manager.PageIssueReporter {
 // The callback function returns true if the page is text/html, has a status code between 200 and 299,
 // and has a description of more than an specified amount of letters.
 func NewLongDescriptionReporter() *report_manager.PageIssueReporter {
-	c := func(pageReport *models.PageReport, htmlNode *html.Node) bool {
+	c := func(pageReport *models.PageReport, htmlNode *html.Node, header *http.Header) bool {
 		if !pageReport.Crawled {
 			return false
 		}
@@ -82,6 +85,33 @@ func NewLongDescriptionReporter() *report_manager.PageIssueReporter {
 
 	return &report_manager.PageIssueReporter{
 		ErrorType: reporter_errors.ErrorLongDescription,
+		Callback:  c,
+	}
+}
+
+// Returns a report_manager.PageIssueReporter with a callback function that checks if the page has more
+// than one description meta tag in the header section.
+// The callback returns true if the page is text/html and has more than one description in the header section.
+func NewMultipleDescriptionTagsReporter() *report_manager.PageIssueReporter {
+	c := func(pageReport *models.PageReport, htmlNode *html.Node, header *http.Header) bool {
+		if !pageReport.Crawled {
+			return false
+		}
+
+		if pageReport.MediaType != "text/html" {
+			return false
+		}
+
+		tags, err := htmlquery.QueryAll(htmlNode, "//head//meta[@name=\"description\"]")
+		if err != nil {
+			return false
+		}
+
+		return len(tags) > 1
+	}
+
+	return &report_manager.PageIssueReporter{
+		ErrorType: reporter_errors.ErrorMultipleDescriptionTags,
 		Callback:  c,
 	}
 }

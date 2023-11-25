@@ -1,4 +1,4 @@
-package http_crawler
+package httpcrawler
 
 import (
 	"net/http"
@@ -6,7 +6,12 @@ import (
 	"time"
 )
 
-type Client struct {
+const (
+	// HTTP client timeout in seconds.
+	clientTimeOut = 10
+)
+
+type BasicAuthClient struct {
 	Options *ClientOptions
 	client  *http.Client
 }
@@ -19,29 +24,26 @@ type ClientOptions struct {
 	AuthPass         string
 }
 
-func NewClient(options *ClientOptions) *Client {
+func NewClient(options *ClientOptions) *BasicAuthClient {
 	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: clientTimeOut * time.Second,
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 
-	return &Client{
+	return &BasicAuthClient{
 		client:  httpClient,
 		Options: options,
 	}
 }
 
 // Makes a request with the specified method.
-// It sets the client's User-Agent as well as the BasicAuth details if they are available.
-func (c *Client) request(m, u string) (*http.Response, error) {
-	req, err := http.NewRequest(m, u, nil)
+func (c *BasicAuthClient) request(method, u string) (*http.Response, error) {
+	req, err := http.NewRequest(method, u, nil)
 	if err != nil {
 		return &http.Response{}, err
 	}
-
-	req.Header.Set("User-Agent", c.Options.UserAgent)
 
 	domain, err := url.Parse(u)
 	if err != nil {
@@ -52,16 +54,11 @@ func (c *Client) request(m, u string) (*http.Response, error) {
 		req.SetBasicAuth(c.Options.AuthUser, c.Options.AuthPass)
 	}
 
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+	return c.Do(req)
 }
 
 // Returns true if the domain exists in the BasicAutDomains slice.
-func (c *Client) isBasicAuthDomain(domain string) bool {
+func (c *BasicAuthClient) isBasicAuthDomain(domain string) bool {
 	for _, element := range c.Options.BasicAuthDomains {
 		if element == domain {
 			return true
@@ -72,11 +69,24 @@ func (c *Client) isBasicAuthDomain(domain string) bool {
 }
 
 // Makes a GET request to an URL and returns the http response or an error.
-func (c *Client) Get(u string) (*http.Response, error) {
+func (c *BasicAuthClient) Get(u string) (*http.Response, error) {
 	return c.request(http.MethodGet, u)
 }
 
 // Makes a HEAD request to an URL and returns the http response or an error.
-func (c *Client) Head(u string) (*http.Response, error) {
+func (c *BasicAuthClient) Head(u string) (*http.Response, error) {
 	return c.request(http.MethodHead, u)
+}
+
+// Does a request and returns its response and error.
+// It sets the client's User-Agent as well as the BasicAuth details if they are available.
+func (c *BasicAuthClient) Do(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", c.Options.UserAgent)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
 }

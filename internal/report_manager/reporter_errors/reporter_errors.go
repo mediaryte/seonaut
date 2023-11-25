@@ -57,4 +57,13 @@ const (
 	ErrorHreflangMissingSelfReference            // Pages with hreflang tags and missing self-reference
 	ErrorHreflangMismatchLang                    // Pages with hreflang and mismatching lang in self-reference
 	ErrorHreflangRelativeURL                     // Pages using relative urls hreflang links
+	ErrorCanonicalMismatch                       // Pages with different canonical URLs in the HTML and HTTP headers
+	ErrorMissingHSTSHeader                       // Pages with missing HSTS header
+	ErrorMissingCSP                              // Pages with missing content security policy
+	ErrorContentTypeOptions                      // Pages missing the X-Content-Type-Options header
+	ErrorLargeImage                              // Large images
+	ErrorLongAltText                             // Pages with images that have a long alt text
+	ErrorMultipleTitleTags                       // Pages with more than one title tag in the header
+	ErrorMultipleDescriptionTags                 // Pages with more than one meta description tag
+	ErrorDepth                                   // Pages with high depth
 )

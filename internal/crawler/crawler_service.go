@@ -32,7 +32,7 @@ type Storage interface {
 	SaveEndCrawl(*models.Crawl) (*models.Crawl, error)
 	GetLastCrawls(models.Project, int) []models.Crawl
 	GetPreviousCrawl(*models.Project) (*models.Crawl, error)
-	DeleteCrawl(c *models.Crawl)
+	DeleteCrawlData(c *models.Crawl)
 }
 type Service struct {
 	store         Storage
@@ -127,7 +127,7 @@ func (s *Service) StartCrawler(p models.Project) (*models.Crawl, error) {
 			continue
 		}
 
-		s.reportManager.CreatePageIssues(r.PageReport, r.HtmlNode, crawl)
+		s.reportManager.CreatePageIssues(r.PageReport, r.HtmlNode, r.Header, crawl)
 
 		s.broker.Publish(fmt.Sprintf("crawl-%d", p.Id), &pubsub.Message{Name: "PageReport", Data: r})
 	}
@@ -147,7 +147,7 @@ func (s *Service) StartCrawler(p models.Project) (*models.Crawl, error) {
 			return
 		}
 
-		s.store.DeleteCrawl(previous)
+		s.store.DeleteCrawlData(previous)
 		s.cacheManager.RemoveCrawlCache(previous)
 	}()
 

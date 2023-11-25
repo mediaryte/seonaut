@@ -166,3 +166,30 @@ ERROR_HREFLANG_MISMATCHING_LANG_DESC: Using different language codes in the HTML
 
 ERROR_HREFLANG_RELATIVE_URL: Hreflang values with relative URLs
 ERROR_HREFLANG_RELATIVE_URL_DESC: Pages that are using relative URLs in the hreflang values. Alternate URLs in the hreflang tags must be absolute. Replace them to avoid crawlabality issues and improper language detection of the page.
+
+ERROR_CANONICAL_MISMATCH: Canonical mismatch
+ERROR_CANONICAL_MISMATCH_DESC: Pages with different canonical URLs in the HTML code and HTTP headers. Setting different canonical URLs in the HTML code and HTTP headers creates inconsistency and can confuse search engines, which may result in reduced search engine rankings and visibility.
+
+ERROR_MISSING_HSTS: Missing HSTS header
+ERROR_MISSING_HSTS_DESC: Pages without HSTS header. Missing HTTP Strict Transport Security header makes sites more vulnerable to security threats which may impact SEO in terms of user security and trustworthiness.
+
+ERROR_MISSING_CSP: Missing content security policy
+ERROR_MISSING_CSP_DESC: Pages missing the CSP (Content Security Policy) HTML meta tag or HTTP header increase vulnerability to security threats, potentially leading to malicious content or compromised user experiences, which search engines may penalize.
+
+ERROR_CONTENT_TYPE_OPTIONS: Missing content type options
+ERROR_CONTENT_TYPE_OPTIONS_DESC: Pages missing X-Content-Type-Options header exposing the website to content type security risks, leading to potential SEO penalties and unsafe user experiences.
+
+ERROR_LARGE_IMAGE: Large images
+ERROR_LARGE_IMAGE_DESC: Large images can slow down a web page's loading speed, negatively affecting the user experience and SEO rankings due to increased load times. Consider using large images only when essential and optimize them to a reasonable size.
+
+ERROR_LONG_ALT_TEXT: Images with long Alt text
+ERROR_LONG_ALT_TEXT_DESC: Pages that have images with long text in the alt attribute. Having a long text in the alt attribute of an image can make it harder to understand the image's content and purpose. Try to keep the alt text short and to the point.
+
+ERROR_MULTIPLE_TITLES: Multiple title tags
+ERROR_MULTIPLE_TITLES_DESC: Pages with more than one title tag in the header section. Having multiple title tags in the HTML header can hurt SEO by confusing search engines, as it can make it more difficult to understand the page's content.
+
+ERROR_MULTIPLE_DESCRIPTIONS: Multiple description meta tags
+ERROR_MULTIPLE_DESCRIPTIONS_DESC: Pages with more than one description meta tag in the header section. Having multiple description meta tags in the HTML header can hurt SEO by confusing search engines, as it can make it more difficult to understand the page's content.
+
+ERROR_PAGE_DEPTH: Pages with high depth
+ERROR_PAGE_DEPTH_DESC: Pages with high depth can negatively impact SEO and user experience because they are challenging for both search engines and users to access, potentially leading to decreased visibility in search results and a less intuitive browsing experience.
